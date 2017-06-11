@@ -1,0 +1,16 @@
+!include makefile.msvc
+
+JPEG_TURBO_OBJS = $(JPEG_TURBO_OBJS) \
+	$(OT)\jcapimin.obj $(OT)\jcapistd.obj $(OT)\jcmarker.obj $(OT)\jcparam.obj $(OT)\jcinit.obj \
+	$(OT)\jchuff.obj $(OT)\jcphuff.obj $(OT)\jcsample.obj $(OT)\jcdctmgr.obj $(OT)\jcprepct.obj \
+	$(OT)\jcmaster.obj $(OT)\jcmainct.obj $(OT)\jccolor.obj $(OT)\jcarith.obj $(OT)\jccoefct.obj
+
+#ADD_CFLAGS = /DHAVE_BOOLEAN /DXMD_H /D NEED_FAR_POINTERS /FIwindows.h
+#ADD_CFLAGS = /FIwindows.h
+JPEG_TURBO_CFLAGS = $(JPEG_TURBO_CFLAGS) $(ADD_CFLAGS)
+
+$(OFZ)\filt_dctd.obj: $(MUPDF_DIR)\fitz\filt_dctd.c
+	$(CC) /TC $(MUPDF_CFLAGS) $(ADD_CFLAGS) /Fo$(OFZ)\ /Fd$(O)\vc80.pdb $?
+
+libmupdf.lib: $(O) $(LIBS_OBJS)
+	lib.exe /LTCG $(LIBS_OBJS) $(LIBS) /OUT:$@

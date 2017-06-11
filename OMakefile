@@ -1,0 +1,78 @@
+.PHONY: all install clean test spi pack cp
+
+SUMATRADIR = sumatrapdf-2.2.1
+CXXFLAGS = /I$(SUMATRADIR)/mupdf/pdf /I$(SUMATRADIR)/mupdf/fitz 
+DEF = spi00am.def
+FILES[] =
+	spi00am.obj
+	spi00am_ex.obj
+	infcache.obj
+	common.obj
+OUTLIB[] =
+	libmupdf.lib
+PACKFILES[] =
+	$(filter %.cpp %.h %.def %.ini %.txt, $(ls .))
+	OMakefile
+	OMakeroot
+	buildlib.bat
+	makefile.lib.msvc
+NEEDED[] =
+	common.h
+	spi00am_ex.h
+
+if $(file-exists ./patch)
+	xcopy /S /Y /D .\\patch .\\
+
+Shell. += 
+	cl-depend-ja(argv) =
+		eprintln($(argv))
+		filename = $(nth 0, $(argv))
+		depends[] =
+		awk(b, $(stdin))
+		case $'^.*メモ: インクル..ド ファイル: *\(.*\)$'
+			depends[] += $(file $"$1")
+			export
+		case $'Note:.*including file: *\(.*\)$'
+			eprintln($1)
+			depends[] += $(file $"$1")
+			export
+		case $'.[(][0-9][0-9]*[)] : (warning|(fatal |)error) [A-Z][0-9]*: '
+			eprintln($0)
+		depends = $(string-escaped $(set $(depends)))
+		objname = $(string-escaped $(rootname $(filename))$(EXT_OBJ))
+		println($"$(objname): $(depends)")
+.SCANNER: %.obj: %.cpp
+	cl /nologo /c $(CFLAGS) $(PREFIXED_INCLUDES) /Zs /showIncludes $< |& cl-depend-ja $<
+.SCANNER: %.obj: %.c
+	cl /nologo /c $(CFLAGS) $(PREFIXED_INCLUDES) /Zs /showIncludes $< |& cl-depend-ja $<
+
+libmupdf.lib: $(SUMATRADIR)/mupdf/buildlib.bat $(SUMATRADIR)/mupdf/makefile.lib.msvc
+	$(SUMATRADIR)/mupdf/buildlib.bat
+	cp	$(SUMATRADIR)/mupdf/libmupdf.lib .
+$(SUMATRADIR)/mupdf/buildlib.bat: buildlib.bat
+	cp buildlib.bat $(SUMATRADIR)/mupdf/
+$(SUMATRADIR)/mupdf/makefile.lib.msvc: makefile.lib.msvc
+	cp makefile.lib.msvc $(SUMATRADIR)/mupdf/
+
+axpdf.spi: $(FILES) libmupdf.lib
+	link /DLL /LTCG $(FILES) $(OUTLIB) /DEF\:$(DEF) /OUT\:$@
+
+test: test.exe
+	$< a.pdf
+test.exe: test.obj common.obj libmupdf.lib
+	cl $^ /Fe$@ /link /LTCG
+clean:
+	$(rm $(filter %.obj %.spi axpdf.lib axpdf.exp, $(ls .)))
+
+src.zip: $(PACKFILES)
+	zip -1 $@ $^
+axpdf.zip: axpdf.spi axpdf.ini readme.txt src.zip
+	zip -1 $@ $^
+pack: axpdf.zip 
+
+spi: axpdf.spi
+cp: spi
+	cp axpdf.spi c:/Programs/afx/Susie/
+%.obj: $(NEEDED)
+
+.DEFAULT: spi
