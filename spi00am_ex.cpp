@@ -46,8 +46,8 @@ BOOL IsSupportedEx(char *filename, char *data)
 	fz_context *ctx = fz_new_context(NULL, NULL, FZ_STORE_DEFAULT);
 	int ret = openDocument(ctx, &doc, filename);
 	if (ret != SPI_ALL_RIGHT) { return FALSE; }
-	fz_close_document(doc);
-	fz_free_context(ctx);
+	fz_drop_document(ctx, doc);
+	fz_clone_context(ctx);
 	return TRUE;
 }
 //---------------------------------------------------------------------------
@@ -76,10 +76,10 @@ int GetArchiveInfoEx(LPSTR filename, long len, HLOCAL *lphInf)
 	fz_try(ctx) {
 		ret = openDocument(ctx, &doc, filename);
 		if (ret != SPI_ALL_RIGHT) {return ret;}
-		fcount = fz_count_pages(doc);
+		fcount = fz_count_pages(ctx, doc);
 		*lphInf = LocalAlloc(LPTR, sizeof(fileInfo)*(fcount+1));
 		if (*lphInf == NULL) {
-			fz_close_document(doc);
+			fz_drop_document(ctx, doc);
 			return SPI_NO_MEMORY;
 		}
 
@@ -88,14 +88,14 @@ int GetArchiveInfoEx(LPSTR filename, long len, HLOCAL *lphInf)
 			/* Method(7+'\0'ˆÈ“à‚Å‚Ì“K“–‚È•¶Žš—ñ‚ð•Ô‹p) */
 			lstrcpy((char*)pinfo->method, "MuPDF");
 			fz_try(ctx) {
-				page = fz_load_page(doc, i);
+				page = fz_load_page(ctx, doc, i);
 			} fz_catch(ctx) {
-				fz_close_document(doc);
+				fz_drop_document(ctx, doc);
 				return SPI_OUT_OF_ORDER;
 			}
 			ret = GetBitmapToMemory(ctx, NULL, &filesize, doc, page, g_resolution);
-			if (ret != 0) { fz_close_document(doc); return ret;}
-			fz_free_page(doc, page);
+			if (ret != 0) { fz_drop_document(ctx, doc); return ret;}
+			fz_drop_page(ctx, page);
 			pinfo->position = i;
 			pinfo->compsize = filesize;
 			pinfo->filesize = filesize;
@@ -106,12 +106,12 @@ int GetArchiveInfoEx(LPSTR filename, long len, HLOCAL *lphInf)
 		}
 		pinfo->method[0] = '\0';
 
-		fz_close_document(doc);
+		fz_drop_document(ctx, doc);
 	} fz_catch(ctx) {
-		fz_close_document(doc);
+		fz_drop_document(ctx, doc);
 		return SPI_FILE_READ_ERROR;
 	}
-	fz_free_context(ctx);
+	fz_clone_context(ctx);
 
 	llog("GetArchiveInfoEx,SPI_ALL_RIGHT");
 	return SPI_ALL_RIGHT;
@@ -138,9 +138,9 @@ int GetFileEx(char *filename, HLOCAL *dest, fileInfo *pinfo,
 		if (ret != SPI_ALL_RIGHT) {return ret;}
 		llog("GetFileEx loadPage");
 		fz_try(ctx) {
-			page = fz_load_page(doc, pinfo->position);
+			page = fz_load_page(ctx, doc, pinfo->position);
 		} fz_catch(ctx) {
-			fz_close_document(doc);
+			fz_drop_document(ctx, doc);
 			return SPI_OUT_OF_ORDER;
 		}
 		ret = GetBitmapToMemory(ctx, dest, &filesize, doc, page, g_resolution);
@@ -149,12 +149,12 @@ int GetFileEx(char *filename, HLOCAL *dest, fileInfo *pinfo,
 			llog("GetFileEx loadPage Error");
 		}
 
-		fz_close_document(doc);
+		fz_drop_document(ctx, doc);
 	} fz_catch(ctx) {
-		fz_close_document(doc);
+		fz_drop_document(ctx, doc);
 		return SPI_FILE_READ_ERROR;
 	}
-	fz_free_context(ctx);
+	fz_clone_context(ctx);
 
 	return ret;
 }
