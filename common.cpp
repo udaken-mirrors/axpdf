@@ -22,9 +22,8 @@ int getPasswordSuggest(int num, char *buf, int len)
 
 //hLocalにNULLを渡すとbuf_sizeにファイルサイズが返ってくる
 int GetBitmapToMemory(fz_context *ctx, HLOCAL *hLocal, unsigned long *buf_size, fz_document *doc, fz_page *page, int resolution) {
-	fz_display_list *list;
 	fz_device *dev;
-	fz_colorspace *colorspace = fz_device_rgb(ctx);
+	fz_colorspace *colorspace = fz_device_bgr(ctx);
 
 	float zoom = (float)resolution / 72;
 	fz_matrix ctm;
@@ -38,40 +37,39 @@ int GetBitmapToMemory(fz_context *ctx, HLOCAL *hLocal, unsigned long *buf_size, 
 	bbox = *fz_round_rect(&bbox, fz_transform_rect(&rect, &ctm));
 
 	unsigned long bitLength;
+	const int bytePerPixel = 4;
 	int width = bbox.x1 - bbox.x0,
 		height = bbox.y1 - bbox.y0;
-	if ((width * 3) % 4 == 0) {
-		bitLength = width * 3;
+	if ((width * bytePerPixel) % 4 == 0) {
+		bitLength = width * bytePerPixel;
 	}
 	else {
-		bitLength = width * 3 + (4 - (width * 3) % 4);
+		bitLength = width * bytePerPixel + (4 - (width * bytePerPixel) % 4);
 	}
 	*buf_size = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) + bitLength*height;
 	if (hLocal == NULL) {	//filesizeの取得
 		return 0;
 	}
 
-	pix = fz_new_pixmap_with_bbox(ctx, colorspace, &bbox, FALSE);
+	pix = fz_new_pixmap_with_bbox(ctx, colorspace, &bbox, TRUE);
 	fz_clear_pixmap_with_value(ctx, pix, 255);
 
 	dev = fz_new_draw_device(ctx, NULL, pix);
 	fz_run_page(ctx, page, dev, &ctm, NULL);
 	fz_drop_device(ctx, dev);
 
-	BITMAPFILEHEADER fileHeader;
-	BITMAPINFOHEADER infoHeader;
-	memset(&fileHeader, 0, sizeof(fileHeader));
-	memset(&infoHeader, 0, sizeof(infoHeader));
+	BITMAPFILEHEADER fileHeader = {0};
+	BITMAPINFOHEADER infoHeader = {0};
 	fileHeader.bfType = 'M' * 256 + 'B';
 	fileHeader.bfSize = *buf_size;
 	fileHeader.bfOffBits = sizeof(fileHeader) + sizeof(infoHeader);
 	fileHeader.bfReserved1 = 0;
 	fileHeader.bfReserved2 = 0;
-	infoHeader.biSize = 40;
+	infoHeader.biSize = sizeof(BITMAPINFOHEADER);
 	infoHeader.biWidth = width;
-	infoHeader.biHeight = height;
+	infoHeader.biHeight = -height;
 	infoHeader.biPlanes = 1;
-	infoHeader.biBitCount = 24;
+	infoHeader.biBitCount = bytePerPixel * 8;
 	infoHeader.biCompression = 0;
 	infoHeader.biSizeImage = fileHeader.bfSize;
 	infoHeader.biXPelsPerMeter = infoHeader.biYPelsPerMeter = 0;
@@ -90,6 +88,7 @@ int GetBitmapToMemory(fz_context *ctx, HLOCAL *hLocal, unsigned long *buf_size, 
 	buf += sizeof(infoHeader);
 
 	unsigned char *samples = fz_pixmap_samples(ctx, pix);
+#if 0
 	for (int i = 0; i < height; i++) {
 		unsigned char *pd = buf + (height - i - 1)*bitLength;
 		for (int j = 0; j < width; j++) {
@@ -100,7 +99,9 @@ int GetBitmapToMemory(fz_context *ctx, HLOCAL *hLocal, unsigned long *buf_size, 
 			samples += 3;
 		}
 	}
-
+#else
+	memcpy(buf, samples, fz_pixmap_stride(ctx, pix) * height);
+#endif
 	fz_drop_pixmap(ctx, pix);
 	return 0;
 }

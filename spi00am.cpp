@@ -17,9 +17,9 @@ BOOL APIENTRY DllMain(HANDLE hModule, DWORD ul_reason_for_call, LPVOID lpReserve
 {
 	llog("DllMain");
 	switch (ul_reason_for_call) {
-		case DLL_PROCESS_DETACH:
-			infocache.Clear();
-			break;
+	case DLL_PROCESS_DETACH:
+		infocache.Clear();
+		break;
 	}
 	return SpiEntryPoint(hModule, ul_reason_for_call, lpReserved);
 }
@@ -27,11 +27,11 @@ BOOL APIENTRY DllMain(HANDLE hModule, DWORD ul_reason_for_call, LPVOID lpReserve
 /***************************************************************************
  * SPI関数
  ***************************************************************************/
-//---------------------------------------------------------------------------
+ //---------------------------------------------------------------------------
 int __stdcall GetPluginInfo(int infono, LPSTR buf, int buflen)
 {
 	llog("GetPluginInfo");
-	if (infono < 0 || infono >= (sizeof(pluginfo) / sizeof(char *))) 
+	if (infono < 0 || infono >= (sizeof(pluginfo) / sizeof(char *)))
 		return 0;
 
 	lstrcpyn(buf, pluginfo[infono], buflen);
@@ -45,17 +45,18 @@ int __stdcall IsSupported(LPSTR filename, DWORD dw)
 	char buff[HEADBUF_SIZE];
 
 	char buf[128];
-	BYTE *d =(BYTE*)dw;
+	BYTE *d = (BYTE*)dw;
 	if ((dw & 0xFFFF0000) == 0) {
-	/* dwはファイルハンドル */
+		/* dwはファイルハンドル */
 		llog("FileHandle");
 		DWORD ReadBytes;
 		if (!ReadFile((HANDLE)dw, buff, HEADBUF_SIZE, &ReadBytes, NULL)) {
 			return 0;
 		}
 		data = buff;
-	} else {
-	/* dwはバッファへのポインタ */
+	}
+	else {
+		/* dwはバッファへのポインタ */
 		data = (char *)dw;
 		llog("Buffer");
 	}
@@ -91,39 +92,41 @@ int GetArchiveInfoCache(char *filename, long len, HLOCAL *phinfo, fileInfo *pinf
 	CloseHandle(hf);
 	if (ReadBytes != HEADBUF_SIZE) return SPI_NOT_SUPPORT;
 	if (!IsSupportedEx(filename, headbuf)) return SPI_NOT_SUPPORT;
-	
+
 	ret = GetArchiveInfoEx(filename, len, &hinfo);
 	if (ret != SPI_ALL_RIGHT) return ret;
 
 	//キャッシュ
 	infocache.Add(filename, &hinfo);
 
-if (phinfo != NULL) {
-	UINT size = LocalSize(hinfo);
-	/* 出力用のメモリの割り当て */
-	*phinfo = LocalAlloc(LMEM_FIXED, size);
-	if (*phinfo == NULL) {
-		return SPI_NO_MEMORY;
-	}
+	if (phinfo != NULL) {
+		UINT size = LocalSize(hinfo);
+		/* 出力用のメモリの割り当て */
+		*phinfo = LocalAlloc(LMEM_FIXED, size);
+		if (*phinfo == NULL) {
+			return SPI_NO_MEMORY;
+		}
 
-	memcpy(*phinfo, (void*)hinfo, size);
-} else {
-	fileInfo *ptmp = (fileInfo *)hinfo;
-	if (pinfo->filename[0] != '\0') {
-		for (;;) {
-			if (ptmp->method[0] == '\0') return SPI_NO_FUNCTION;
-			if (lstrcmpi(ptmp->filename, pinfo->filename) == 0) break;
-			ptmp++;
-		}
-	} else {
-		for (;;) {
-			if (ptmp->method[0] == '\0') return SPI_NO_FUNCTION;
-			if (ptmp->position == pinfo->position) break;
-			ptmp++;
-		}
+		memcpy(*phinfo, (void*)hinfo, size);
 	}
-	*pinfo = *ptmp;
-}
+	else {
+		fileInfo *ptmp = (fileInfo *)hinfo;
+		if (pinfo->filename[0] != '\0') {
+			for (;;) {
+				if (ptmp->method[0] == '\0') return SPI_NO_FUNCTION;
+				if (lstrcmpi(ptmp->filename, pinfo->filename) == 0) break;
+				ptmp++;
+			}
+		}
+		else {
+			for (;;) {
+				if (ptmp->method[0] == '\0') return SPI_NO_FUNCTION;
+				if (ptmp->position == pinfo->position) break;
+				ptmp++;
+			}
+		}
+		*pinfo = *ptmp;
+	}
 	return SPI_ALL_RIGHT;
 }
 //---------------------------------------------------------------------------
@@ -149,8 +152,8 @@ int __stdcall GetFileInfo
 }
 //---------------------------------------------------------------------------
 int __stdcall GetFile(LPSTR src, long len,
-			   LPSTR dest, unsigned int flag,
-			   SPI_PROGRESS lpPrgressCallback, long lData)
+	LPSTR dest, unsigned int flag,
+	SPI_PROGRESS lpPrgressCallback, long lData)
 {
 	//ファイルへの出力は対応していない
 	if ((flag & 0x700) == 0) return SPI_NO_FUNCTION;
